@@ -86,11 +86,11 @@ def ground_segmentation(data):
     print("法向量计算完毕")
     # 3. 拟合地面,根据法向量是合格的点
     # inlier_threshold = 0.7 * (1 - bad_normal_indexes.sum(axis=0) / len(data))
-    inlier_threshold = 0.7
+    inlier_threshold = 0.6
     print("inlier_threshold = {}".format(inlier_threshold))
 
     tau = 0.5  # 属于内点的阈值
-    num_iteration = 100
+    num_iteration = 50
     segmented_ground_indexes_set = set()
     for i in range(num_iteration):
         # 随机选取三个点
@@ -298,7 +298,8 @@ def main():
 
     origin_points = read_velodyne_bin(filename)
     segmented_points, segmented_ground = ground_segmentation(data=origin_points)
-    cluster_index = clustering(segmented_points)
+    # cluster_index = clustering(segmented_points)
+    _, cluster_index = cluster.dbscan(segmented_points, 0.3, min_samples=3)
     #
     # plot_clusters(segmented_points, cluster_index)
 

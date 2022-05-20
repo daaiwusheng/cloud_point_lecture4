@@ -40,7 +40,6 @@ def get_cosine_with_z_axis(point):
 
     length = np.sqrt(x * x + y * y + z * z)
     cosine = abs(z) / length
-    # cosine = np.sqrt(x*x + y*y) / abs(z)
     return cosine
 
 
@@ -87,7 +86,7 @@ def ground_segmentation(data):
     print("法向量计算完毕")
     # 3. 拟合地面,根据法向量是合格的点
     # inlier_threshold = 0.7 * (1 - bad_normal_indexes.sum(axis=0) / len(data))
-    inlier_threshold = 0.9
+    inlier_threshold = 0.7
     print("inlier_threshold = {}".format(inlier_threshold))
 
     tau = 0.5  # 属于内点的阈值
@@ -113,32 +112,36 @@ def ground_segmentation(data):
         c = (ps[1][0] - ps[0][0]) * (ps[2][1] - ps[0][1]) - (ps[1][1] - ps[0][1]) * (ps[2][0] - ps[0][0])
         d = 0 - (a * ps[0][0] + b * ps[0][1] + c * ps[0][2])
         print("平面拟合完毕")
-        inlier_cloud_current = np.zeros((0, data.shape[1]))
-        inlier_index = np.zeros((0, 1), dtype=int)
+        inlier_cloud_current = np.zeros((0, data.shape[1]))  # 存实际的点的坐标
+        inlier_index = np.zeros((0, 1), dtype=int)  # 存内点的索引
         print("计算其余点是否是内点")
         for j in range(len(data)):
             current_point_j = data[j, :]
             distance_to_plane = abs(a * current_point_j[0] + b * current_point_j[1] + c * current_point_j[2] + d) / \
                                 np.sqrt(a * a + b * b + c * c)
             if distance_to_plane < tau and bad_normal_indexes[j] != 1:
-                inlier_cloud_current = np.append(inlier_cloud_current, current_point_j)
+                inlier_cloud_current = np.append(inlier_cloud_current, [current_point_j], axis=0)
                 inlier_index = np.append(inlier_index, j)
-
-        if len(inlier_cloud_current) > len(inlier_cloud_final):
-            inlier_cloud_final = inlier_cloud_current
-            segmengted_cloud = np.delete(data, inlier_index, axis=0)
-            segmented_ground_indexes_set.update(inlier_index)
+        # 所谓的 法线向上的点, 不全都是地面点,只能说大部分是地面点
+        # 基于上述原因, 所以要进行平面拟合, 不然就没办法知道哪些属于地面点.
+        # 还有一个重点需要考虑, 拟合出来的平面的内点, 应该设置一个下限, 比如占所谓的地面点或者总点数比例多少,
+        # 才能视她们为地面点, 不然或许拟合的平面是别的食物的平面,
 
         inlier_percent = len(inlier_cloud_current) / groudn_cloud_num
+        if inlier_percent > 0.1:
+            # 所有认为是地面点的内点存起来, 后面再从原始点云中删掉
+            segmented_ground_indexes_set.update(inlier_index)
+
         print("内点比例为: {}".format(inlier_percent))
         if inlier_percent > inlier_threshold:  # 可以提前终止
             break
 
     # 屏蔽结束
     segmented_ground = data[list(segmented_ground_indexes_set)]
+    segmengted_cloud = np.delete(data, list(segmented_ground_indexes_set), axis=0)
 
     print('origin data points num:', data.shape[0])
-    print("地面点num : ", len(inlier_cloud_final))
+    print("地面点num : ", len(segmented_ground))
     print('segmented data points num:', segmengted_cloud.shape[0])
     return segmengted_cloud, segmented_ground
 
